@@ -1,5 +1,7 @@
 import type { Transaction, InsertTransaction } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { transactions } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, sql as drizzleSql } from "drizzle-orm";
 
 export interface IStorage {
   // Transaction methods
@@ -9,54 +11,44 @@ export interface IStorage {
   updateTransactionStatus(txHash: string, status: string, blockNumber?: number): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
-  private transactions: Map<string, Transaction>;
-
-  constructor() {
-    this.transactions = new Map();
-  }
-
+export class PostgresStorage implements IStorage {
   async getTransactionsByWallet(walletAddress: string): Promise<Transaction[]> {
-    const allTransactions = Array.from(this.transactions.values());
-    return allTransactions
-      .filter(tx => 
-        tx.walletAddress.toLowerCase() === walletAddress.toLowerCase()
-      )
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(drizzleSql`lower(${transactions.walletAddress}) = lower(${walletAddress})`)
+      .orderBy(desc(transactions.timestamp));
+    return result;
   }
 
   async getTransactionByHash(txHash: string): Promise<Transaction | undefined> {
-    return Array.from(this.transactions.values()).find(
-      tx => tx.txHash.toLowerCase() === txHash.toLowerCase()
-    );
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(drizzleSql`lower(${transactions.txHash}) = lower(${txHash})`)
+      .limit(1);
+    return result[0];
   }
 
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
-    const id = randomUUID();
-    const transaction: Transaction = {
-      ...insertTransaction,
-      id,
-      gasUsed: insertTransaction.gasUsed || null,
-      gasPrice: insertTransaction.gasPrice || null,
-      blockNumber: insertTransaction.blockNumber || null,
-      tokenAddress: insertTransaction.tokenAddress || null,
-      tokenSymbol: insertTransaction.tokenSymbol || null,
-      tokenDecimals: insertTransaction.tokenDecimals || null,
-    };
-    this.transactions.set(id, transaction);
-    return transaction;
+    const result = await db
+      .insert(transactions)
+      .values(insertTransaction)
+      .returning();
+    return result[0];
   }
 
   async updateTransactionStatus(txHash: string, status: string, blockNumber?: number): Promise<void> {
-    const transaction = await this.getTransactionByHash(txHash);
-    if (transaction) {
-      transaction.status = status;
-      if (blockNumber !== undefined) {
-        transaction.blockNumber = blockNumber;
-      }
-      this.transactions.set(transaction.id, transaction);
+    const updateData: Partial<Transaction> = { status };
+    if (blockNumber !== undefined) {
+      updateData.blockNumber = blockNumber;
     }
+    
+    await db
+      .update(transactions)
+      .set(updateData)
+      .where(drizzleSql`lower(${transactions.txHash}) = lower(${txHash})`);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new PostgresStorage();
