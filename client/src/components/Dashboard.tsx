@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, ArrowUpRight, ArrowDownLeft, Plus, RefreshCw, Wallet, ExternalLink } from "lucide-react";
+import { Copy, ArrowUpRight, ArrowDownLeft, Plus, RefreshCw, Wallet, ExternalLink, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { loadCustomTokens, getStoredAddress, type StoredToken } from "@/lib/wallet";
 import { getAllTokenBalances, truncateAddress } from "@/lib/web3";
@@ -17,6 +17,7 @@ import AddTokenDialog from "./AddTokenDialog";
 import SendDialog from "./SendDialog";
 import ReceiveDialog from "./ReceiveDialog";
 import TransactionHistory from "./TransactionHistory";
+import { BackupDialog } from "./BackupDialog";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [showAddToken, setShowAddToken] = useState(false);
   const [showSend, setShowSend] = useState(false);
   const [showReceive, setShowReceive] = useState(false);
+  const [showBackup, setShowBackup] = useState(false);
   const networkConfig = getNetworkConfig();
 
   useEffect(() => {
@@ -254,16 +256,28 @@ export default function Dashboard() {
                   <div className="text-xs font-mono break-all bg-muted/50 p-3 rounded-md" data-testid="text-full-address">
                     {walletAddress}
                   </div>
-                  <Button
-                    onClick={copyAddress}
-                    variant="outline"
-                    className="w-full"
-                    size="sm"
-                    data-testid="button-copy-address-sidebar"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy Address
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={copyAddress}
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
+                      data-testid="button-copy-address-sidebar"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </Button>
+                    <Button
+                      onClick={() => setShowBackup(true)}
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
+                      data-testid="button-backup-wallet"
+                    >
+                      <Shield className="w-4 h-4 mr-2" />
+                      Backup
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -312,6 +326,10 @@ export default function Dashboard() {
         open={showReceive}
         onClose={() => setShowReceive(false)}
         walletAddress={walletAddress}
+      />
+      <BackupDialog
+        open={showBackup}
+        onOpenChange={setShowBackup}
       />
     </div>
   );

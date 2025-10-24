@@ -106,12 +106,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // API Routes
 
-  // Get transactions for a wallet
+  // Get transactions for a wallet (split by sent/received)
   app.get("/api/transactions/:walletAddress", async (req, res) => {
     try {
       const { walletAddress } = req.params;
-      const transactions = await storage.getTransactionsByWallet(walletAddress);
-      res.json(transactions);
+      const allTransactions = await storage.getTransactionsByWallet(walletAddress);
+      
+      // Split transactions by type
+      const sent = allTransactions.filter(tx => tx.type === 'send');
+      const received = allTransactions.filter(tx => tx.type === 'receive');
+      
+      res.json({ sent, received });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
