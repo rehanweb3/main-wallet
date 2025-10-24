@@ -136,7 +136,7 @@ export default function SendDialog({ open, onClose, walletAddress, tokens }: Sen
           from: walletAddress,
           to: recipient,
           value: amount,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(),
           status: "pending",
           tokenAddress: selectedToken?.contractAddress || null,
           tokenSymbol: selectedToken?.symbol,
