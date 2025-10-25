@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import { BackupDialog } from "./BackupDialog";
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [customTokens, setCustomTokens] = useState<StoredToken[]>([]);
   const [showAddToken, setShowAddToken] = useState(false);
@@ -55,6 +56,20 @@ export default function Dashboard() {
     if (message.type === "newBlock") {
       console.log("New block detected, refreshing balances");
       refetch();
+    } else if (message.type === "transactionUpdate") {
+      console.log("Transaction update received:", message.transaction);
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions", walletAddress] });
+      
+      if (message.transaction.status === "success" || message.transaction.status === "failed") {
+        toast({
+          title: `Transaction ${message.transaction.status === "success" ? "Confirmed" : "Failed"}`,
+          description: `Transaction ${truncateAddress(message.transaction.txHash)} is now ${message.transaction.status}`,
+        });
+        refetch();
+      }
+    } else if (message.type === "newTransaction") {
+      console.log("New transaction detected");
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions", walletAddress] });
     }
   });
 

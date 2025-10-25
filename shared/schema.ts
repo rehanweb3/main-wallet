@@ -53,9 +53,13 @@ export const insertCustomTokenSchema = createInsertSchema(customTokens).omit({
   addedAt: true,
 });
 
-export const insertTransactionSchema = createInsertSchema(transactions).omit({
+export const insertTransactionSchema = createInsertSchema(transactions, {
+  // explicitly accept both string and Date for timestamp
+  timestamp: z.union([z.string(), z.date()]).transform((val) => new Date(val)),
+}).omit({
   id: true,
 });
+
 
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
 export type Wallet = typeof wallets.$inferSelect;

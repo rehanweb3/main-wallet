@@ -9,6 +9,8 @@ export interface IStorage {
   getTransactionByHash(txHash: string): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(txHash: string, status: string, blockNumber?: number): Promise<void>;
+  updateTransactionDetails(txHash: string, updates: Partial<Omit<Transaction, 'id' | 'walletAddress' | 'txHash'>>): Promise<void>;
+  getPendingTransactions(): Promise<Transaction[]>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -48,6 +50,25 @@ export class PostgresStorage implements IStorage {
       .update(transactions)
       .set(updateData)
       .where(drizzleSql`lower(${transactions.txHash}) = lower(${txHash})`);
+  }
+
+  async updateTransactionDetails(
+    txHash: string, 
+    updates: Partial<Omit<Transaction, 'id' | 'walletAddress' | 'txHash'>>
+  ): Promise<void> {
+    await db
+      .update(transactions)
+      .set(updates)
+      .where(drizzleSql`lower(${transactions.txHash}) = lower(${txHash})`);
+  }
+
+  async getPendingTransactions(): Promise<Transaction[]> {
+    const result = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.status, 'pending'))
+      .orderBy(desc(transactions.timestamp));
+    return result;
   }
 }
 

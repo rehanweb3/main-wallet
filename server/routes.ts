@@ -6,10 +6,14 @@ import { insertTransactionSchema } from "@shared/schema";
 import { z } from "zod";
 import { ethers } from "ethers";
 import env from "dotenv";
+import { TransactionMonitor } from "./transaction-monitor";
 
 env.config();
 // WebSocket client tracking
 const clients = new Set<WebSocket>();
+
+// Transaction monitor instance
+let transactionMonitor: TransactionMonitor | null = null;
 
 // Get provider for blockchain interaction
 function getProvider(): ethers.JsonRpcProvider {
@@ -104,6 +108,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup block listener
   setupBlockListener();
 
+  // Setup transaction monitor
+  const rpcUrl = process.env.VITE_RPC_URL || "https://rpc.mintrax.network";
+  transactionMonitor = new TransactionMonitor(rpcUrl, clients, 10000);
+  transactionMonitor.start();
+
   // API Routes
 
   // Get transactions for a wallet (split by sent/received)
@@ -142,6 +151,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/transactions", async (req, res) => {
     try {
       const validatedData = insertTransactionSchema.parse(req.body);
+      
+      // Capture current block number for pending transactions
+      if (!validatedData.blockNumber && validatedData.status === "pending") {
+        try {
+          const provider = getProvider();
+          const currentBlock = await provider.getBlockNumber();
+          validatedData.blockNumber = currentBlock;
+        } catch (error) {
+          console.error("Failed to get current block number:", error);
+        }
+      }
+      
       const transaction = await storage.createTransaction(validatedData);
       
       // Broadcast new transaction to WebSocket clients
@@ -156,6 +177,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           client.send(message);
         }
       });
+      
+      // Trigger immediate check for this transaction
+      if (transactionMonitor && transaction.status === "pending") {
+        setTimeout(() => {
+          transactionMonitor?.checkTransactionOnce(transaction.txHash);
+        }, 2000);
+      }
       
       res.json(transaction);
     } catch (error: any) {

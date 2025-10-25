@@ -130,19 +130,26 @@ export default function SendDialog({ open, onClose, walletAddress, tokens }: Sen
       
       // Record transaction in backend
       try {
-        await apiRequest("POST", "/api/transactions", {
+        const transactionData: any = {
           walletAddress,
           txHash: tx.hash,
           from: walletAddress,
           to: recipient,
           value: amount,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           status: "pending",
-          tokenAddress: selectedToken?.contractAddress || null,
-          tokenSymbol: selectedToken?.symbol,
-          tokenDecimals: selectedToken?.decimals,
           type: "send",
-        });
+        };
+        
+        if (selectedToken?.contractAddress) {
+          transactionData.tokenAddress = selectedToken.contractAddress;
+          transactionData.tokenSymbol = selectedToken.symbol;
+          transactionData.tokenDecimals = selectedToken.decimals;
+        } else {
+          transactionData.tokenAddress = null;
+        }
+        
+        await apiRequest("POST", "/api/transactions", transactionData);
       } catch (err) {
         console.error("Failed to record transaction:", err);
         // Continue anyway - transaction was sent
@@ -333,7 +340,7 @@ export default function SendDialog({ open, onClose, walletAddress, tokens }: Sen
                         {selectedToken?.logoUrl ? (
                           <img src={selectedToken.logoUrl} alt={selectedToken.symbol} className="w-5 h-5 rounded-full" />
                         ) : selectedToken?.contractAddress === null ? (
-                          <img src={`/images/${networkConfig.nativeToken}.png`} alt={networkConfig.nativeToken} className="w-5 h-5 rounded-full" />
+                          <img src={`/images/MTT.png`} alt={networkConfig.nativeToken} className="w-5 h-5 rounded-full" />
                         ) : null}
                         <span className="ml-1">{selectedToken?.symbol}</span>
                       </span>
